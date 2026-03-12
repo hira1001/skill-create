@@ -1,37 +1,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
-import { join, dirname } from "path";
+import { join } from "path";
 import type { EvalSet } from "../schemas/eval-set.js";
-
-function parseFrontmatter(content: string): {
-  name: string;
-  description: string;
-  body: string;
-} {
-  const match = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
-  if (!match) return { name: "", description: "", body: content };
-
-  let name = "";
-  let description = "";
-  const lines = match[1].split("\n");
-  let currentKey = "";
-  let currentValue = "";
-
-  for (const line of lines) {
-    const keyMatch = line.match(/^(\w[\w-]*)\s*:\s*(.*)$/);
-    if (keyMatch) {
-      if (currentKey === "name") name = currentValue.trim();
-      if (currentKey === "description") description = currentValue.trim();
-      currentKey = keyMatch[1];
-      currentValue = keyMatch[2].replace(/^\|$/, "");
-    } else if (currentKey && line.startsWith("  ")) {
-      currentValue += " " + line.trim();
-    }
-  }
-  if (currentKey === "name") name = currentValue.trim();
-  if (currentKey === "description") description = currentValue.trim();
-
-  return { name, description, body: match[2] };
-}
+import { parseFrontmatter } from "../utils/parse-frontmatter.js";
 
 export function generateEvalSetTemplate(
   skillPath: string,
@@ -39,7 +9,8 @@ export function generateEvalSetTemplate(
 ): { eval_set_path: string; eval_set: EvalSet } {
   const skillMdPath = join(skillPath, "SKILL.md");
   const content = readFileSync(skillMdPath, "utf-8");
-  const { name, description, body } = parseFrontmatter(content);
+  const { frontmatter } = parseFrontmatter(content);
+  const name = frontmatter?.name ?? "";
 
   const shouldTriggerCount = Math.ceil(count / 2);
   const shouldNotTriggerCount = count - shouldTriggerCount;

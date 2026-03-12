@@ -1,5 +1,6 @@
 import { readFileSync, existsSync, readdirSync, statSync } from "fs";
 import { join, basename } from "path";
+import { parseFrontmatter } from "../utils/parse-frontmatter.js";
 
 interface ValidationError {
   field: string;
@@ -19,33 +20,6 @@ interface ValidationResult {
     reference_files: number;
     agent_files: number;
   };
-}
-
-function parseFrontmatter(content: string): {
-  frontmatter: Record<string, string> | null;
-  body: string;
-} {
-  const match = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
-  if (!match) return { frontmatter: null, body: content };
-
-  const fm: Record<string, string> = {};
-  const lines = match[1].split("\n");
-  let currentKey = "";
-  let currentValue = "";
-
-  for (const line of lines) {
-    const keyMatch = line.match(/^(\w[\w-]*)\s*:\s*(.*)$/);
-    if (keyMatch) {
-      if (currentKey) fm[currentKey] = currentValue.trim();
-      currentKey = keyMatch[1];
-      currentValue = keyMatch[2].replace(/^\|$/, "");
-    } else if (currentKey && line.startsWith("  ")) {
-      currentValue += " " + line.trim();
-    }
-  }
-  if (currentKey) fm[currentKey] = currentValue.trim();
-
-  return { frontmatter: fm, body: match[2] };
 }
 
 export function validateSkill(skillPath: string): ValidationResult {

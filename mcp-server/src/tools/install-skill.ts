@@ -7,6 +7,7 @@ import {
 } from "fs";
 import { join, basename } from "path";
 import { homedir } from "os";
+import { parseFrontmatter } from "../utils/parse-frontmatter.js";
 
 interface InstallResult {
   installed_path: string;
@@ -25,8 +26,8 @@ export function installSkill(
 
   // Extract skill name from frontmatter
   const content = readFileSync(skillMdPath, "utf-8");
-  const nameMatch = content.match(/^name:\s*(.+)$/m);
-  const skillName = nameMatch ? nameMatch[1].trim() : basename(skillPath);
+  const { frontmatter } = parseFrontmatter(content);
+  const skillName = frontmatter?.name ?? basename(skillPath);
 
   // Determine target directory
   const targetBase =

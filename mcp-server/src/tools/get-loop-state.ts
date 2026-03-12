@@ -2,6 +2,7 @@ import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import type { LoopState } from "../schemas/loop-state.js";
 import { INITIAL_LOOP_STATE } from "../schemas/loop-state.js";
+import { parseFrontmatter } from "../utils/parse-frontmatter.js";
 
 export function getLoopState(skillPath: string): LoopState {
   const statePath = join(skillPath, ".agent", "loop-state.json");
@@ -12,8 +13,8 @@ export function getLoopState(skillPath: string): LoopState {
 
     if (existsSync(skillMdPath)) {
       const content = readFileSync(skillMdPath, "utf-8");
-      const nameMatch = content.match(/^name:\s*(.+)$/m);
-      if (nameMatch) skillName = nameMatch[1].trim();
+      const { frontmatter } = parseFrontmatter(content);
+      if (frontmatter?.name) skillName = frontmatter.name;
     }
 
     return {
