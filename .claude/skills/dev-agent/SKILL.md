@@ -6,6 +6,8 @@ description: |
   Use when: "fix this bug", "implement this feature", "refactor this module",
   "add tests for", "バグを直して", "機能を実装して", "リファクタリングして".
   Composes dev-agent-* sub-skills into a coherent end-to-end workflow.
+  Do NOT use when: user only wants an explanation, code review without changes,
+  or asking a question (no code modification required).
 ---
 
 # Development Agent Orchestrator
@@ -109,7 +111,29 @@ Final summary written to `.agent/summary.json`:
 }
 ```
 
+## Auto-Recovery
+
+If a required phase output file is missing when a downstream phase starts:
+- Missing `phase1/context-output.json`: run `dev-agent-context` automatically
+- Missing `phase2/arch-output.json`: run `dev-agent-arch` automatically
+- Any sub-skill not available: report "Required skill `dev-agent-X` is not installed. Run `/skill-create` to install it."
+
+See [phase-contract.md](references/phase-contract.md) for the full data contract between phases.
+
 ## Error Handling
 - If any phase fails fatally: report the error and stop; don't proceed to next phases
 - If validate fails after 2 retries: report the remaining issues and ask user how to proceed
 - If context detection fails: ask user to specify project root manually
+
+## Quick Start Example
+
+User: "Fix the authentication timeout bug in src/auth.ts"
+
+```
+✅ Phase 1: Context → TypeScript/Express project detected (42 files)
+✅ Phase 2: Plan   → 1 file to modify: src/auth.ts (add null guard on line 42)
+✅ Phase 3: Fix    → Applied: return 401 if user is null; added regression test
+✅ Phase 4: Validate → compile ✓, lint ✓, tests 12/12 passed
+✅ Phase 5: Review → PASS (no critical issues)
+Summary: Fixed null-user crash on session expiry. 1 file modified.
+```

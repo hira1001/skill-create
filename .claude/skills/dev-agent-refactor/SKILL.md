@@ -5,8 +5,11 @@ description: |
   external behavior. Follows the project's conventions and patterns.
   Produces a refactor output JSON listing all modified files for validation.
   Use when: "refactor this", "clean up the code", "リファクタリングして",
-  "コードを整理して", "extract this into a function", "remove duplication".
+  "コードを整理して", "extract this into a function", "remove duplication",
+  "simplify", "decouple", "improve code structure".
   Can also be used standalone.
+  Do NOT use when: request contains "TODO: refactor" as a code comment,
+  fixing a bug (use dev-agent-fix), or adding new functionality (use dev-agent-generate).
 ---
 
 # Code Refactorer

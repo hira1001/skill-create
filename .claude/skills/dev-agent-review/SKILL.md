@@ -5,8 +5,11 @@ description: |
   Can review staged changes, a PR diff, or specific files. Produces a structured
   review report with findings categorized by severity.
   Use when: "review my code", "check for issues", "コードレビューして",
-  "変更をレビューして", "find security issues", "is this code good?".
+  "変更をレビューして", "find security issues", "is this code good?",
+  "security review", "performance review", "変更点をレビュー".
   Can also be used standalone or as Phase 5 of dev-agent.
+  Do NOT use when: user wants code changed (use dev-agent), or wants explanation
+  only without a review verdict.
 ---
 
 # Code Reviewer

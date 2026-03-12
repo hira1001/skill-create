@@ -26,10 +26,11 @@ If no suite context, analyze the project directly. Ask user to describe the feat
 
 1. **Load context and plan**: Read the context JSON for conventions (naming, import style, patterns) and the arch plan for files to create/modify.
 
-2. **Read existing code**: Before writing, read:
+2. **Read existing code** (max 5 files): Before writing, read:
    - Files listed in `files_to_modify`
-   - Adjacent files to understand patterns (e.g., a sibling route if adding a route)
+   - 1-2 adjacent files to understand patterns (e.g., a sibling route if adding a route)
    - Type definitions and interfaces relevant to the feature
+   If conventions are still unclear after 5 files, use language-standard conventions and note the assumption.
 
 3. **Design the implementation**: Following the arch plan's `approach_notes`:
    - Define new interfaces/types first

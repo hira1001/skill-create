@@ -34,7 +34,7 @@ Accept bug description, error message, or file+line from the user directly.
    - Preserve existing formatting and style
    - If the fix is non-obvious, add a brief inline comment explaining why
 
-4. **Check for related occurrences**: Search for the same pattern in related files — the same bug may exist in multiple places.
+4. **Check for related occurrences**: Search for the same pattern in the 10 most related files (imports, siblings, shared utilities) — the same bug may exist in multiple places. Stop after 10 files.
 
 5. **Update tests if needed**: If there is an existing test that should have caught this bug but didn't:
    - Fix the test to actually cover the bug case
