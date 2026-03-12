@@ -1,57 +1,66 @@
 ---
 name: dev-agent-arch
 description: |
-  Analyzes a development task and produces an architecture plan: which files to
-  touch, what changes to make, and in what order. Produces a plan JSON consumed
-  by dev-agent-fix, dev-agent-generate, and dev-agent-refactor.
+  Dual-mode skill: (1) produces an implementation plan (which files to change,
+  in what order) for dev-agent-fix, dev-agent-generate, and dev-agent-refactor;
+  (2) analyzes codebase architecture (dependencies, coupling, cohesion metrics).
   Use when: "plan the implementation", "what files need to change", "設計して",
-  "実装計画を立てて". Can also be used standalone before coding.
+  "実装計画を立てて", "analyze architecture", "依存関係を調べて",
+  "アーキテクチャ分析", "結合度を調べて". Can also be used standalone.
+  Do NOT use when: user wants code changes made immediately (use dev-agent).
 ---
 
-# Architecture Planner
+# Architecture Planner & Analyzer
 
-Analyze the task and project context to produce a concrete implementation plan before any code is written.
+Two modes in one skill. Mode is determined by context.
 
-## Input
+## Mode Detection
 
-### Suite Mode
-Read project context from `.agent/phase1/context-output.json`.
-Receive task description from the orchestrator (dev-agent).
+| Context | Mode |
+|---------|------|
+| Invoked by dev-agent with `mode: "analyze"` | **Analyze** |
+| User says "analyze architecture", "依存関係", "アーキテクチャ分析" | **Analyze** |
+| Invoked by dev-agent for Flow B/C/E with a task description | **Plan** |
+| User says "plan the implementation", "設計して", "what files need to change" | **Plan** |
 
-### Standalone Mode
-If no suite context, run `dev-agent-context` first or ask user for project details.
+When ambiguous, ask: "Should I analyze the architecture structure, or plan a specific implementation?"
 
-## Process
+---
 
-1. **Understand the task**: Parse the user's request into:
-   - Goal (what should work when done)
-   - Constraints (must not break X, stay within Y pattern)
-   - Type: bug-fix / new-feature / refactor / test / docs
+## Plan Mode
 
-2. **Identify affected areas**: Based on context JSON and task:
-   - Which modules / packages are involved
-   - Which files likely need to change
-   - Which files likely need to be created
-   - Which files must NOT be changed (risk of regression)
+Produce a concrete implementation plan before any code is written.
 
-3. **Sequence changes**: Order the changes to minimize risk:
-   - Data layer changes before business logic
-   - New interfaces before implementations
-   - Tests after implementation (unless TDD requested)
+### Input
 
-4. **Identify risks and unknowns**:
-   - Missing information that could block execution
-   - Files that need reading before deciding approach
-   - External dependencies that may be affected
+**Suite Mode**: Read `phase1/context-output.json` and `phase2/diagnose-output.json` (if it exists).
+**Standalone**: If no context, run dev-agent-context first or ask for project details.
 
-5. **Verify with user if needed**: If task is ambiguous or risky, surface the top 1-2 questions before continuing.
+### Process
 
-## Output Format
+1. **Understand the task**: Parse request into goal, constraints, and task type
+   (bug-fix / new-feature / refactor / test / docs).
+
+2. **If diagnose-output.json exists**: Read `fix_approach`, `files_to_fix`, and `root_cause`
+   to inform the plan. The arch plan in Flow B translates diagnosis → concrete file changes.
+
+3. **Identify affected areas**: Which files to change, create, and avoid.
+   See [planning-strategies.md](references/planning-strategies.md) for task-type heuristics.
+
+4. **Sequence changes**: Order to minimize risk (data layer before business logic,
+   interfaces before implementations).
+
+5. **Identify risks and unknowns**: Surface blockers before execution.
+
+6. **Verify with user if needed**: Ask at most 1 clarifying question if task is ambiguous.
+
+### Output (Plan Mode)
 
 Write to `.agent/phase2/arch-output.json`:
 
 ```json
 {
+  "mode": "plan",
   "task_type": "bug-fix",
   "goal": "Fix authentication timeout not being refreshed on activity",
   "files_to_modify": [
@@ -70,15 +79,84 @@ Write to `.agent/phase2/arch-output.json`:
 }
 ```
 
-Also display a human-readable plan summary to the user.
+---
+
+## Analyze Mode
+
+Produce an architectural analysis of the codebase: structure, dependencies, quality metrics.
+
+### Input
+
+**Suite Mode**: Read `phase1/context-output.json` for project root and key directories.
+**Standalone**: Auto-detect project or ask for root directory.
+
+### Process
+
+1. **Map the layers**: Identify presentation, business logic, and data access layers
+   by reading `key_directories` from context and sampling representative files.
+
+2. **Find components**: Identify major modules/packages. For each:
+   - List files in the component
+   - List external dependencies (imports from other components)
+
+3. **Measure metrics**: For each component:
+   - **Coupling**: Count of external imports (low/medium/high)
+   - **Cohesion**: Do all files in the component share a single purpose? (high/medium/low)
+   - **Complexity hotspots**: Files with >300 lines or >5 external dependencies
+
+4. **Identify issues**: Circular dependencies, god objects, unclear layer boundaries,
+   high coupling + low cohesion combinations.
+
+5. **Produce recommendations**: Ranked by impact (highest impact first).
+
+### Output (Analyze Mode)
+
+Write to `.agent/phase2/arch-output.json`:
+
+```json
+{
+  "mode": "analyze",
+  "layers": ["presentation", "business", "data"],
+  "components": [
+    {
+      "name": "AuthModule",
+      "files": ["src/auth/session.ts", "src/auth/token.ts"],
+      "dependencies": ["DatabaseModule", "UserModule"]
+    }
+  ],
+  "metrics": {
+    "coupling": "medium",
+    "cohesion": "high",
+    "complexity_hotspots": ["src/auth/session.ts"]
+  },
+  "recommendations": [
+    {
+      "issue": "Circular dependency: AuthModule ↔ UserModule",
+      "suggestion": "Extract shared interface to a new SharedModule"
+    }
+  ]
+}
+```
+
+Also display a human-readable summary to the user.
+
+---
 
 ## Quality Criteria
-- [ ] All files to modify are identified (no surprises during execution)
-- [ ] Change order minimizes merge conflicts and test failures
-- [ ] Risks and unknowns are surfaced before execution begins
-- [ ] `files_to_avoid` prevents accidental regression
+
+**Plan mode**:
+- [ ] All files to modify identified (no surprises during execution)
+- [ ] Diagnose output incorporated if it exists
+- [ ] Change order minimizes risk
+- [ ] Risks and unknowns surfaced before execution
+
+**Analyze mode**:
+- [ ] All major components identified
+- [ ] Coupling/cohesion metrics based on actual file sampling
+- [ ] At least 1 concrete recommendation provided
+- [ ] Circular dependencies explicitly listed if found
 
 ## Error Handling
-- If project context is missing: run dev-agent-context first, then proceed
-- If task is too vague to plan: ask one clarifying question before continuing
-- If no files can be identified: report and ask user to point to the relevant area
+- If context missing: run dev-agent-context first, then proceed
+- If task is vague (plan mode): ask one clarifying question
+- If codebase too large to analyze fully (analyze mode): focus on the top 5 components by file count

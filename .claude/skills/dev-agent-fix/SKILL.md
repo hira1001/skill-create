@@ -16,8 +16,15 @@ Apply targeted, minimal fixes to resolve bugs identified through diagnosis or us
 
 ### Suite Mode
 Read project context from `.agent/phase1/context-output.json`.
-Read diagnosis from `.agent/phase2/diagnose-output.json` (if available) or arch plan from `.agent/phase2/arch-output.json`.
+Read arch plan from `.agent/phase2/arch-output.json` (preferred — contains `fix_approach` informed by diagnosis).
+Fall back to `.agent/phase2/diagnose-output.json` directly if arch output is absent.
 Receive bug description from the orchestrator.
+
+### Retry Mode
+If `.agent/phase4/validate-output-1.json` exists and contains `"all_passed": false`:
+- Read `remediation_hints` array from it
+- Address each hint in this execution
+- Note in `change_summary` which hints were addressed with prefix `[RETRY: {hint}]`
 
 ### Standalone Mode
 Accept bug description, error message, or file+line from the user directly.

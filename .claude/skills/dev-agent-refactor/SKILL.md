@@ -23,6 +23,12 @@ Read project context from `.agent/phase1/context-output.json`.
 Read architecture plan from `.agent/phase2/arch-output.json`.
 Receive refactoring goal from the orchestrator.
 
+### Retry Mode
+If `.agent/phase4/validate-output-1.json` exists and contains `"all_passed": false`:
+- Read `remediation_hints` array from it
+- Address each hint in this execution
+- Note in `change_summary` which hints were addressed with prefix `[RETRY: {hint}]`
+
 ### Standalone Mode
 Accept a file path, module, or description of what to refactor from the user.
 

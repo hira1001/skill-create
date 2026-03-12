@@ -2,138 +2,172 @@
 name: dev-agent
 description: |
   Autonomous development agent that orchestrates multi-phase workflows:
-  context analysis, architecture planning, code changes, validation, and review.
+  context analysis, planning, code changes, validation, and review.
   Use when: "fix this bug", "implement this feature", "refactor this module",
-  "add tests for", "バグを直して", "機能を実装して", "リファクタリングして".
-  Composes dev-agent-* sub-skills into a coherent end-to-end workflow.
-  Do NOT use when: user only wants an explanation, code review without changes,
-  or asking a question (no code modification required).
+  "add tests for", "review my code", "analyze architecture",
+  "バグを直して", "機能を実装して", "リファクタリングして", "コードレビューして".
+  Do NOT use when: user only wants an explanation or answer with no code changes.
 ---
 
 # Development Agent Orchestrator
 
-Execute end-to-end development tasks by orchestrating specialized sub-skills across phases.
+Execute end-to-end development tasks by routing to the correct flow and orchestrating
+specialized sub-skills. See [phase-contract.md](references/phase-contract.md) for data contracts.
 
-## Workflow Phases
+## Flow Routing
 
+Classify the user's request and select the matching flow:
+
+| Request Pattern | Flow |
+|----------------|------|
+| "review", "check my code", "PR review", "コードレビュー" | **A** (review only) |
+| "fix bug", "エラーを直して", "not working", stack trace | **B** (diagnose → fix) |
+| "implement", "add feature", "新機能", "作成して" | **C** (generate) |
+| "add tests", "テストを書いて", "test coverage" | **D** (test only) |
+| "refactor", "clean up", "リファクタリング", "simplify" | **E** (refactor) |
+| "document", "add docs", "ドキュメント", "update README" | **F** (docs only) |
+| "analyze architecture", "依存関係", "アーキテクチャ分析" | **G** (arch analyze) |
+
+If ambiguous between flows, ask: "Should I fix the bug, review your code, or implement something new?"
+
+## Flows
+
+### Flow A — Code Review (no code changes)
 ```
-Phase 1: Context    → dev-agent-context    → .agent/phase1/context-output.json
-Phase 2: Plan       → dev-agent-arch       → .agent/phase2/arch-output.json
-Phase 3: Execute    → dev-agent-fix        → .agent/phase3/fix-output.json
-         (or)       → dev-agent-generate   → .agent/phase3/generate-output.json
-         (or)       → dev-agent-refactor   → .agent/phase3/refactor-output.json
-Phase 4: Validate   → dev-agent-validate   → .agent/phase4/validate-output.json
-Phase 5: Review     → dev-agent-review     → .agent/phase5/review-output.json
-         (opt)      → dev-agent-test       → .agent/phase5/test-output.json
-         (opt)      → dev-agent-docs       → .agent/phase5/docs-output.json
+1. dev-agent-context  → phase1/context-output.json
+2. dev-agent-review   → phase5/review-output.json
+```
+Stop after review. Do NOT modify files.
+
+### Flow B — Bug Fix
+```
+1. dev-agent-context   → phase1/context-output.json
+2. dev-agent-diagnose  → phase2/diagnose-output.json
+3. dev-agent-arch      → phase2/arch-output.json  (informed by diagnose output)
+4. dev-agent-fix       → phase3/fix-output.json
+5. dev-agent-validate  → phase4/validate-output-1.json
+   [retry if fails: re-run fix → phase4/validate-output-2.json]
+6. dev-agent-review    → phase5/review-output.json
 ```
 
-## Task Classification
+### Flow C — Code Generation
+```
+1. dev-agent-context   → phase1/context-output.json
+2. dev-agent-arch      → phase2/arch-output.json
+3. dev-agent-generate  → phase3/generate-output.json
+4. dev-agent-validate  → phase4/validate-output-1.json
+   [retry if fails: re-run generate → phase4/validate-output-2.json]
+5. dev-agent-test      → phase5/test-output.json
+6. dev-agent-docs      → phase5/docs-output.json  (if public API added)
+7. dev-agent-review    → phase5/review-output.json
+```
 
-Determine which Phase 3 skill to invoke:
+### Flow D — Test Generation
+```
+1. dev-agent-context  → phase1/context-output.json
+2. dev-agent-test     → phase5/test-output.json
+3. dev-agent-validate → phase4/validate-output-1.json
+```
 
-| User Request Pattern | Phase 3 Skill |
-|----------------------|---------------|
-| "fix bug", "エラーを直して", "not working" | `dev-agent-fix` |
-| "add feature", "implement", "新機能", "作成して" | `dev-agent-generate` |
-| "refactor", "clean up", "リファクタリング", "improve code" | `dev-agent-refactor` |
-| "add tests", "テストを書いて", "test coverage" | Skip to `dev-agent-test` |
-| "document", "ドキュメント", "add docs" | Skip to `dev-agent-docs` |
+### Flow E — Refactoring
+```
+1. dev-agent-context   → phase1/context-output.json
+2. dev-agent-arch      → phase2/arch-output.json
+3. dev-agent-refactor  → phase3/refactor-output.json
+4. dev-agent-validate  → phase4/validate-output-1.json
+   [retry if fails: re-run refactor → phase4/validate-output-2.json]
+5. dev-agent-review    → phase5/review-output.json
+```
+
+### Flow F — Documentation
+```
+1. dev-agent-context → phase1/context-output.json
+2. dev-agent-docs    → phase5/docs-output.json
+```
+
+### Flow G — Architecture Analysis (no code changes)
+```
+1. dev-agent-context → phase1/context-output.json
+2. dev-agent-arch    → phase2/arch-output.json  (analyze mode)
+```
+Pass `mode: "analyze"` to dev-agent-arch. Stop after analysis. Do NOT modify files.
 
 ## Process
 
 ### Step 1: Initialize workspace
-Create `.agent/` directory structure:
+Create `.agent/phase1/ phase2/ phase3/ phase4/ phase5/` directories.
+Read user's request and apply Flow Routing table to select flow.
+
+### Step 2: Run each flow phase in sequence
+For each phase in the selected flow, invoke the corresponding sub-skill.
+Pass the user's task description to each skill invocation.
+
+**Auto-recovery** (max 1 attempt per phase):
+- If a required input file is missing when a phase starts, run its producing skill automatically.
+- If the automatic run also fails, report the error and stop. Do NOT recurse further.
+- Report: "Required skill `dev-agent-X` failed. Please check [reason] and retry."
+
+### Step 3: Validation retry (for flows with validate)
+On first validation failure:
+1. Read `remediation_hints` from `phase4/validate-output-1.json`
+2. Re-run the Phase 3 skill (it will auto-read the hints from that file)
+3. Re-run dev-agent-validate → writes `phase4/validate-output-2.json`
+4. If still failing: report hints to user and stop. Do NOT retry a third time.
+
+### Step 4: Phase 5 synthesis
+After all Phase 5 skills complete, synthesize verdicts:
+- `review_verdict`: from `phase5/review-output.json`.`verdict` (PASS/WARN/FAIL)
+- `test_passed`: `true` if dev-agent-test ran and wrote `phase5/test-output.json`; `null` if skipped
+- `docs_updated`: `true` if dev-agent-docs ran and wrote `phase5/docs-output.json`; `null` if skipped
+- `overall_passed`: `false` if review_verdict == FAIL OR test_passed == false; otherwise `true`
+
+### Step 5: Write summary and report to user
+
+```json
+{
+  "flow": "B",
+  "task": "fix authentication timeout bug",
+  "phases_run": ["context", "diagnose", "arch", "fix", "validate", "review"],
+  "phase3_skill": "dev-agent-fix",
+  "files_modified": ["src/auth.ts"],
+  "files_created": [],
+  "validation_passed": true,
+  "validate_attempts": 1,
+  "phase5": {
+    "review_verdict": "PASS",
+    "test_passed": null,
+    "docs_updated": null
+  },
+  "overall_passed": true
+}
 ```
-.agent/
-  phase1/  phase2/  phase3/  phase4/  phase5/
+
+Print a concise summary:
 ```
-
-### Step 2: Run Phase 1 — Context
-Invoke `dev-agent-context` skill.
-- Output: `.agent/phase1/context-output.json`
-
-### Step 3: Run Phase 2 — Architecture Plan
-Invoke `dev-agent-arch` skill with the user's task description.
-- Input: context JSON + task description
-- Output: `.agent/phase2/arch-output.json`
-
-### Step 4: Run Phase 3 — Execute
-Based on task classification, invoke the appropriate execution skill.
-- Input: context JSON + arch plan JSON + task description
-- Output: `.agent/phase3/*-output.json`
-
-### Step 5: Run Phase 4 — Validate
-Invoke `dev-agent-validate` skill.
-- Input: context JSON + phase 3 output JSON
-- Output: `.agent/phase4/validate-output.json`
-
-If validation fails:
-- Read `remediation_hints` from validate output
-- Re-invoke the Phase 3 skill with hints (max 2 retry attempts)
-- Re-validate after each fix attempt
-
-### Step 6: Run Phase 5 — Review & Finalize
-Invoke `dev-agent-review` to assess overall quality.
-- Optionally invoke `dev-agent-test` if test coverage gaps were identified
-- Optionally invoke `dev-agent-docs` if public API was added or changed
-
-### Step 7: Report summary to user
-
-```
-✅ Phase 1: Context analyzed (TypeScript/Express, 42 files)
-✅ Phase 2: Architecture planned (3 files to modify)
-✅ Phase 3: Changes applied (src/auth.ts, src/routes/user.ts)
-✅ Phase 4: Validated (compile ✓, lint ✓, tests 12/12 ✓)
-✅ Phase 5: Review passed (no issues)
+✅ Flow B: Bug Fix
+✅ Context: TypeScript/Express (42 files)
+✅ Diagnose: null-user crash on session expiry
+✅ Plan: 1 file to modify (src/auth.ts)
+✅ Fix: applied null guard on line 42
+✅ Validate: compile ✓, lint ✓, tests 12/12 ✓
+✅ Review: PASS
+Overall: PASSED
 ```
 
 ## Selective Execution
 
-Users can request specific phases:
-- "just analyze the project" → Phase 1 only
-- "fix and validate" → Phase 1 + Phase 3 (fix) + Phase 4
-- "review my changes" → Phase 4 + Phase 5 only
+Users can scope to specific phases:
+- "just analyze the project" → Phase 1 only (run dev-agent-context)
+- "just diagnose this error" → dev-agent-diagnose standalone
+- "review my changes" → Flow A
+- "analyze my architecture" → Flow G
 
-## Output
-
-Final summary written to `.agent/summary.json`:
-
-```json
-{
-  "task": "fix authentication timeout bug",
-  "phases_run": ["context", "arch", "fix", "validate", "review"],
-  "files_modified": ["src/auth.ts"],
-  "files_created": [],
-  "validation_passed": true,
-  "review_passed": true,
-  "retry_count": 0
-}
-```
-
-## Auto-Recovery
-
-If a required phase output file is missing when a downstream phase starts:
-- Missing `phase1/context-output.json`: run `dev-agent-context` automatically
-- Missing `phase2/arch-output.json`: run `dev-agent-arch` automatically
-- Any sub-skill not available: report "Required skill `dev-agent-X` is not installed. Run `/skill-create` to install it."
-
-See [phase-contract.md](references/phase-contract.md) for the full data contract between phases.
+When a user requests a specific phase and predecessors haven't run yet:
+- Run only the requested phase in standalone mode (it will auto-detect context)
+- Do NOT run the full flow unless the user asks for it
 
 ## Error Handling
-- If any phase fails fatally: report the error and stop; don't proceed to next phases
-- If validate fails after 2 retries: report the remaining issues and ask user how to proceed
-- If context detection fails: ask user to specify project root manually
-
-## Quick Start Example
-
-User: "Fix the authentication timeout bug in src/auth.ts"
-
-```
-✅ Phase 1: Context → TypeScript/Express project detected (42 files)
-✅ Phase 2: Plan   → 1 file to modify: src/auth.ts (add null guard on line 42)
-✅ Phase 3: Fix    → Applied: return 401 if user is null; added regression test
-✅ Phase 4: Validate → compile ✓, lint ✓, tests 12/12 passed
-✅ Phase 5: Review → PASS (no critical issues)
-Summary: Fixed null-user crash on session expiry. 1 file modified.
-```
+- If any phase fails and auto-recovery also fails: report error + stop
+- If validate fails after 2 attempts: list unresolved hints and ask user how to proceed
+- If context detection fails: ask user to specify `project_root`
+- If flow is ambiguous: ask one clarifying question before starting
