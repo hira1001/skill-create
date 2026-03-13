@@ -35,9 +35,11 @@ If no suite context, detect the project tooling directly and validate the entire
    **Check 2: Lint**
    - Run the project's linter on modified files only (if possible)
    - Capture warnings and errors
+   - **Auto-fix**: If lint or format fails with auto-fixable issues (formatting, import sorting, unused imports), run the auto-fix command (see [check-registry.md](references/check-registry.md) Auto-Fix Policy). Re-run the check to confirm. Track auto-fixed files in `auto_fixed_files`.
 
    **Check 3: Test**
-   - Run the test suite (or targeted tests if upstream provides `run_command` or `verification_hint`)
+   - If Check 1 (compile) failed: **skip** this check (can't test broken code). Record `{"check": "test", "passed": null, "output": "Skipped: compile failed"}`.
+   - Otherwise: run the test suite (or targeted tests if upstream provides `run_command` or `verification_hint`)
    - Capture pass/fail count and output
 
 4. **Produce report** with pass/fail for each check.
@@ -56,7 +58,8 @@ Write to `.agent/phase4/validate-output-{N}.json` where N is the attempt number 
   ],
   "all_passed": false,
   "failing_checks": ["lint"],
-  "remediation_hints": ["Run eslint --fix on src/auth.ts"]
+  "remediation_hints": ["Run eslint --fix on src/auth.ts"],
+  "auto_fixed_files": []
 }
 ```
 

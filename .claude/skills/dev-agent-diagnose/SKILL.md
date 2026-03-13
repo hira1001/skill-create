@@ -76,6 +76,9 @@ Write to `.agent/phase2/diagnose-output.json`:
 }
 ```
 
+Field notes:
+- `related_files`: Files related to the bug but not the root cause (callers, test files, configuration files that influence behavior). Helps downstream skills understand the impact scope.
+
 Also display a human-readable diagnosis summary to the user.
 
 ## Quality Criteria

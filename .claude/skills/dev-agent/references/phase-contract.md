@@ -138,7 +138,8 @@ implementation plan. The plan then goes to dev-agent-fix.
 | `checks` | `{check, passed, output}[]` | Each check result |
 | `all_passed` | boolean | True if all checks passed |
 | `failing_checks` | string[] | Names of failed checks |
-| `remediation_hints` | string[] | Actionable fix instructions |
+| `remediation_hints` | string[] | Actionable fix instructions (each hint is a single sentence) |
+| `auto_fixed_files` | string[] | Files modified by auto-fix (formatting, import sorting) |
 
 **Check order**: Run compile → lint → test in order.
 If compile fails, still run lint but skip test (can't test broken code).
@@ -208,6 +209,20 @@ The orchestrator reads the latest file for the retry decision.
   "overall_passed": true
 }
 ```
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `flow` | string | Flow letter (A-G) |
+| `task` | string | User's task description |
+| `phases_run` | string[] | Phase names executed |
+| `phase3_skill` | string \| null | Which Phase 3 skill ran |
+| `files_modified` | string[] | All files changed |
+| `files_created` | string[] | All files created |
+| `validation_passed` | boolean | Final validate result |
+| `validate_attempts` | number | 1 or 2 |
+| `review_retried` | boolean | Whether review retry loop was used |
+| `phase5` | object | `{review_verdict, test_passed, docs_updated}` |
+| `overall_passed` | boolean | Final verdict |
 
 `overall_passed` rules:
 - `false` if `review_verdict == "FAIL"`

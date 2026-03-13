@@ -23,6 +23,13 @@ Read project context from `.agent/phase1/context-output.json`.
 Read the most recent execution output (fix/generate/refactor) from `.agent/phase3/`.
 Review the files listed in `files_modified` and `files_created`.
 
+### Suite Mode — Review Retry
+The orchestrator may invoke this skill a second time in the same flow if the first review returned `"verdict": "FAIL"`. On the second invocation:
+- The Phase 3 skill will have already re-run to address the critical findings.
+- Focus the re-review on whether the previously reported `critical` findings have been resolved.
+- Produce a fresh `review-output.json` (overwrites the previous one).
+- It is acceptable to report new findings discovered during re-review.
+
 ### Standalone Mode
 Accept specific files, a directory, or "review staged changes" from the user.
 Run `git diff --staged` or `git diff HEAD~1` to get the diff if reviewing recent changes.

@@ -20,6 +20,8 @@ Read project context from `.agent/phase1/context-output.json`.
 Read execution output from `.agent/phase3/` for `files_created` and `files_modified`.
 Focus documentation on newly added or changed public APIs.
 
+In Flow C, the orchestrator decides whether to invoke this skill based on Docs Trigger Rules (e.g., files created in `routes/`, `api/`, `controllers/`, or `endpoints/` directories; user mentions "public", "API", "endpoint"; new module/package created). If invoked, prioritize documenting public-facing APIs from `files_created`.
+
 ### Standalone Mode
 Accept a file path, function name, or "document everything in X" from the user.
 

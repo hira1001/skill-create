@@ -92,10 +92,19 @@ Write to `.agent/phase1/context-output.json`:
 }
 ```
 
+When a monorepo is detected (see [project-detection-rules.md](references/project-detection-rules.md#monorepo-detection)):
+```json
+"monorepo": {
+  "type": "npm-workspaces",
+  "packages": ["packages/core", "packages/api", "apps/web"],
+  "active_package": "packages/api"
+}
+```
+
 Also display a human-readable summary to the user.
 
 ## Quality Criteria
-- [ ] All fields populated (no nulls for detectable values)
+- [ ] All fields populated (nulls only for undetectable or inapplicable fields)
 - [ ] Language and framework correctly identified
 - [ ] Test framework detection matches actual project config
 - [ ] Git status accurate

@@ -67,8 +67,8 @@ Stop after review. Do NOT modify files.
 1. dev-agent-context   → phase1/context-output.json
 2. dev-agent-arch      → phase2/arch-output.json
 3. dev-agent-generate  → phase3/generate-output.json
-4. dev-agent-test      → phase5/test-output.json
-5. dev-agent-validate  → phase4/validate-output-1.json
+4. dev-agent-test      → phase5/test-output.json   (note: outputs to phase5/ despite step 4)
+5. dev-agent-validate  → phase4/validate-output-1.json  (runs after test so it can execute generated tests)
    [retry if fails: re-run generate → phase4/validate-output-2.json]
 6. dev-agent-docs      → phase5/docs-output.json  (see Docs Trigger Rules below)
 7. dev-agent-review    → phase5/review-output.json
@@ -216,6 +216,7 @@ After all Phase 5 skills complete, synthesize verdicts:
   "files_created": [],
   "validation_passed": true,
   "validate_attempts": 1,
+  "review_retried": false,
   "phase5": {
     "review_verdict": "PASS",
     "test_passed": null,
