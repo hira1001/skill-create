@@ -51,16 +51,34 @@ Language-specific commands for compile, lint, and test checks.
 
 | Check | Command | Notes |
 |-------|---------|-------|
-| Compile | `mvn compile` | |
-| Lint | `mvn checkstyle:check` | If configured |
-| Test | `mvn test` | |
+| Compile | `mvn compile -q` | `-q` for quiet output |
+| Lint | `mvn checkstyle:check` | If configured in pom.xml |
+| Lint | `mvn spotbugs:check` | Alternative lint tool |
+| Test | `mvn test` or `mvn test -pl <module>` | `-pl` for multi-module |
+| Format check | `mvn spotless:check` | If spotless plugin configured |
+| Format fix | `mvn spotless:apply` | Auto-fix — modifies files |
 
-## Java (Gradle)
+**Build tool detection**: `pom.xml` → Maven, `build.gradle` or `build.gradle.kts` → Gradle.
+
+## Java / Kotlin (Gradle)
 
 | Check | Command | Notes |
 |-------|---------|-------|
-| Compile | `gradle compileJava` | |
-| Test | `gradle test` | |
+| Compile | `./gradlew compileJava` or `./gradlew compileKotlin` | Use wrapper `./gradlew` |
+| Lint | `./gradlew ktlintCheck` or `./gradlew checkstyleMain` | Framework-dependent |
+| Lint fix | `./gradlew ktlintFormat` | Kotlin auto-fix |
+| Test | `./gradlew test` | |
+| Format check | `./gradlew spotlessCheck` | If spotless plugin configured |
+| Format fix | `./gradlew spotlessApply` | Auto-fix — modifies files |
+
+## Ruby
+
+| Check | Command | Notes |
+|-------|---------|-------|
+| Lint | `bundle exec rubocop <files>` | |
+| Lint fix | `bundle exec rubocop -A <files>` | Auto-fix — modifies files |
+| Test | `bundle exec rspec` or `bundle exec rails test` | RSpec vs Minitest |
+| Type check | `bundle exec srb tc` | If Sorbet configured |
 
 ## Targeted vs Full Checks
 

@@ -14,21 +14,35 @@ description: |
 Execute end-to-end development tasks by routing to the correct flow and orchestrating
 specialized sub-skills. See [phase-contract.md](references/phase-contract.md) for data contracts.
 
+## Critical Invariants
+
+These rules are NEVER violated regardless of context:
+1. **No skipping phases**: Every phase in the selected flow runs in order. If a phase fails, stop or retry — never skip.
+2. **No phantom files**: Only report files in `files_modified`/`files_created` that were actually written to disk. Verify with file existence check.
+3. **No silent failures**: Every phase must produce its output JSON. If it doesn't, trigger auto-recovery or stop with explicit error.
+4. **No scope creep**: The orchestrator routes and coordinates. It does NOT write application code, fix bugs, or make architectural decisions. Those belong to sub-skills.
+5. **Single flow at a time**: Complete one flow before starting another (compound requests run sequentially, not interleaved).
+
 ## Flow Routing
 
 Classify the user's request and select the matching flow:
 
-| Request Pattern | Flow |
-|----------------|------|
-| "review", "check my code", "PR review", "コードレビュー" | **A** (review only) |
-| "fix bug", "エラーを直して", "not working", stack trace | **B** (diagnose → fix) |
-| "implement", "add feature", "新機能", "作成して" | **C** (generate) |
-| "add tests", "テストを書いて", "test coverage" | **D** (test only) |
-| "refactor", "clean up", "リファクタリング", "simplify" | **E** (refactor) |
-| "document", "add docs", "ドキュメント", "update README" | **F** (docs only) |
-| "analyze architecture", "依存関係", "アーキテクチャ分析" | **G** (arch analyze) |
+| Request Pattern | Flow | Key Signal |
+|----------------|------|------------|
+| "review", "check my code", "PR review", "コードレビュー" | **A** | No code changes requested |
+| "fix bug", "エラーを直して", "not working", stack trace present | **B** | Error/bug described |
+| "implement", "add feature", "新機能", "作成して" | **C** | New capability requested |
+| "add tests", "テストを書いて", "test coverage" | **D** | Tests only |
+| "refactor", "clean up", "リファクタリング", "simplify" | **E** | Structure change, same behavior |
+| "document", "add docs", "ドキュメント", "update README" | **F** | Docs only |
+| "analyze architecture", "依存関係", "アーキテクチャ分析" | **G** | Analysis only, no changes |
 
-If ambiguous between flows, ask: "Should I fix the bug, review your code, or implement something new?"
+### Flow Selection Protocol
+
+1. Scan for **strongest signal first**: stack traces → Flow B. "add"/"create"/"implement" → Flow C.
+2. If two signals compete (e.g., "fix this by refactoring"), pick the **primary intent** (fix = B, refactor = E). The verb closest to the user's desired outcome wins.
+3. If genuinely ambiguous after applying rules 1-2, ask exactly one question: "Should I fix the bug, review your code, or implement something new?"
+4. NEVER guess a flow and proceed silently when uncertain.
 
 ### Compound Requests
 
@@ -67,7 +81,7 @@ Stop after review. Do NOT modify files.
 1. dev-agent-context   → phase1/context-output.json
 2. dev-agent-arch      → phase2/arch-output.json
 3. dev-agent-generate  → phase3/generate-output.json
-4. dev-agent-test      → phase5/test-output.json   (note: outputs to phase5/ despite step 4)
+4. dev-agent-test      → phase5/test-output.json   (outputs to phase5/ despite step 4)
 5. dev-agent-validate  → phase4/validate-output-1.json  (runs after test so it can execute generated tests)
    [retry if fails: re-run generate → phase4/validate-output-2.json]
 6. dev-agent-docs      → phase5/docs-output.json  (see Docs Trigger Rules below)
@@ -161,6 +175,11 @@ After each phase completes, print a one-line result:
 For each phase in the selected flow, invoke the corresponding sub-skill.
 Pass the user's task description to each skill invocation.
 
+**Inter-phase integrity check**: After each phase completes, verify the expected output file exists and contains required fields (see phase-contract.md Output Validation Rules). If validation fails:
+1. Log the specific missing field or malformed data.
+2. Trigger auto-recovery (re-run the producing skill once).
+3. If re-run also produces invalid output, stop with explicit error message.
+
 **Auto-recovery** (max 1 attempt per phase):
 - If a required input file is missing when a phase starts, run its producing skill automatically.
 - If the automatic run also fails, report the error and stop. Do NOT recurse further.
@@ -228,13 +247,13 @@ After all Phase 5 skills complete, synthesize verdicts:
 
 Print a concise summary:
 ```
-✅ Flow B: Bug Fix
-✅ Context: TypeScript/Express (42 files)
-✅ Diagnose: null-user crash on session expiry
-✅ Plan: 1 file to modify (src/auth.ts)
-✅ Fix: applied null guard on line 42
-✅ Validate: compile ✓, lint ✓, tests 12/12 ✓
-✅ Review: PASS
+Flow B: Bug Fix
+  Context: TypeScript/Express (42 files)
+  Diagnose: null-user crash on session expiry
+  Plan: 1 file to modify (src/auth.ts)
+  Fix: applied null guard on line 42
+  Validate: compile OK, lint OK, tests 12/12 OK
+  Review: PASS
 Overall: PASSED
 ```
 
@@ -265,3 +284,4 @@ This is useful after a failed validation where the user made manual fixes.
 - If validate fails after 2 attempts: list unresolved hints and ask user how to proceed
 - If context detection fails: ask user to specify `project_root`
 - If flow is ambiguous: ask one clarifying question before starting
+- If a sub-skill produces output with unexpected schema: log the discrepancy, attempt to use what's available, warn user of degraded quality

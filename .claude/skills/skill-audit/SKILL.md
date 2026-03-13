@@ -6,12 +6,20 @@ description: |
   "スキルの品質チェック", "review my skills", "skill health check",
   "audit all skills", "全スキルを監査", "スキル品質レポート".
   Validates structure, evaluates quality, detects anti-patterns, and generates an audit report.
+  Do NOT use when: user wants to create or improve a skill (use skill-create instead).
 ---
 
 # Skill Quality Auditor
 
 Audit one or all Claude Code skills for quality, structure, and best practices compliance.
 Uses MCP server (`skill-creator-server`) for structural validation and subagents for deep analysis.
+
+## Critical Rules
+
+1. **Evidence-based scoring**: Every score must cite specific text from the skill. "Accuracy: 3/5" alone is invalid. "Accuracy: 3/5 — instructions say 'handle appropriately' on line 42 without defining what 'appropriate' means" is valid.
+2. **Consistent criteria**: Apply the same rubric to every skill. Do not adjust expectations based on skill complexity.
+3. **Actionable output**: Every finding must include a specific fix suggestion. "Needs improvement" is not actionable. "Replace 'handle errors' on line 15 with 'if error is network timeout, retry once; if auth error, report to user'" is.
+4. **No false confidence**: If the MCP server is unavailable, run manual validation. Note in the report that MCP validation was skipped.
 
 ## Input Detection
 
@@ -31,55 +39,64 @@ Uses MCP server (`skill-creator-server`) for structural validation and subagents
 - Report: "Found N skills to audit"
 
 ### Phase 2: Structural Validation (per skill)
-Use MCP: `validate_skill(skill_path)` for each skill.
+Use MCP: `validate_skill(skill_path)` for each skill. If MCP unavailable, check manually.
 
 Check:
 - [ ] SKILL.md exists with valid YAML frontmatter
 - [ ] `name` is kebab-case, no reserved words
-- [ ] `description` exists, <1024 chars, includes trigger info
+- [ ] `description` exists, <1024 chars, includes "Use when:" trigger info
 - [ ] Body is <500 lines
 - [ ] references/ files are appropriately sized (<200 lines each)
-- [ ] agents/ have valid frontmatter
-- [ ] No orphaned files (files not referenced by SKILL.md)
+- [ ] agents/ have valid frontmatter (if agents/ exists)
+- [ ] No orphaned files (files in references/ or agents/ not referenced by SKILL.md)
 
 ### Phase 3: Anti-Pattern Detection (per skill)
 Check against anti-patterns (from skill-create's `references/anti-patterns.md`):
 
-- **AP-1 Kitchen Sink**: Body >300 lines AND description lists 3+ capabilities
-- **AP-2 Vague Description**: Description lacks "Use when:" or trigger phrases
-- **AP-3 Keyword Triggering**: Description relies on single keywords without context
-- **AP-4 Inline Everything**: Body >400 lines AND no references/ directory
-- **AP-5 Ambiguous Instructions**: Uses vague language ("make it good", "handle appropriately")
-- **AP-6 No Quality Criteria**: No explicit success criteria or output format
-- **AP-7 Context Assumption**: References specific files/tools without checking existence
-- **AP-8 Output Format Drift**: No output format specification
-- **AP-9 No Error Path**: No error handling instructions
-- **AP-10 Stale References**: references/ files contradict SKILL.md
-- **AP-11 Over-Engineered**: >5 reference files for a simple skill
-- **AP-12 Missing Tests**: No eval set in .agent/evals/
+| ID | Anti-Pattern | Detection Rule |
+|----|-------------|---------------|
+| AP-1 | Kitchen Sink | Body >300 lines AND description lists 3+ unrelated capabilities |
+| AP-2 | Vague Description | Description lacks "Use when:" or has no trigger phrases |
+| AP-3 | Keyword Triggering | Description relies on single generic keywords without context |
+| AP-4 | Inline Everything | Body >400 lines AND no references/ directory |
+| AP-5 | Ambiguous Instructions | Contains: "make it good", "handle appropriately", "ensure quality", "process as needed" |
+| AP-6 | No Quality Criteria | No explicit success criteria, output format, or quality checklist |
+| AP-7 | Context Assumption | References specific files/tools without checking they exist |
+| AP-8 | Output Format Drift | No output format specification (for skills that produce structured output) |
+| AP-9 | No Error Path | No error handling instructions |
+| AP-10 | Stale References | references/ files contradict SKILL.md content |
+| AP-11 | Over-Engineered | >5 reference files for a single (non-suite) skill |
+| AP-12 | Missing Tests | No eval set in .agent/evals/ |
+
+For each detected anti-pattern, cite the specific line(s) and text that triggered detection.
 
 ### Phase 4: Quality Scoring (per skill)
 Launch `skill-audit-scorer` agent to evaluate 5 axes:
 
-1. **Accuracy potential**: How likely is this skill to produce accurate output?
-   - Clear, specific instructions → high score
-   - Vague, ambiguous instructions → low score
+1. **Accuracy potential** (1-5): How likely is this skill to produce correct output?
+   - 5: Every instruction is unambiguous with concrete examples
+   - 3: Most instructions clear but some subjective judgment required
+   - 1: Instructions are vague; output quality depends on luck
 
-2. **Completeness**: Does the skill cover all necessary steps?
-   - Comprehensive workflow → high
-   - Missing steps or edge cases → low
+2. **Completeness** (1-5): Does the skill cover all necessary steps?
+   - 5: All steps, edge cases, and error paths covered
+   - 3: Happy path covered, some edge cases missing
+   - 1: Major workflow steps missing
 
-3. **Structure Quality**: Progressive Disclosure, file organization
-   - Well-separated layers → high
-   - Everything inline → low
+3. **Structure Quality** (1-5): Progressive Disclosure, file organization
+   - 5: Clean separation (SKILL.md <300 lines, details in references/)
+   - 3: Reasonable organization but some bloat
+   - 1: Everything in one file, >500 lines
 
-4. **Trigger Precision**: Description quality for auto-invocation
-   - Specific trigger phrases + "Use when:" → high
-   - Generic description → low
+4. **Trigger Precision** (1-5): Description quality for auto-invocation
+   - 5: Specific "Use when:" + "Do NOT use when:" + multilingual triggers
+   - 3: Has trigger phrases but missing disambiguation
+   - 1: Generic description, will false-trigger on many inputs
 
-5. **Reusability**: Will this work for different inputs/contexts?
-   - Parameterized, no hard-coded assumptions → high
-   - Hard-coded to specific project → low
+5. **Reusability** (1-5): Will this work for different inputs/contexts?
+   - 5: Parameterized, handles multiple languages/frameworks/contexts
+   - 3: Works for common cases, breaks on unusual inputs
+   - 1: Hard-coded to a specific project or technology
 
 ### Phase 5: Generate Audit Report
 
@@ -96,9 +113,9 @@ Skills audited: {{count}}
 | {{name}} | {{avg}}/5 | {{PASS/WARN/FAIL}} | {{issue}} |
 
 ## Status Criteria
-- PASS: avg ≥ 4.0, no axis below 3.0, no critical anti-patterns
-- WARN: avg ≥ 3.0 but has warnings or anti-patterns
-- FAIL: avg < 3.0 or has critical structural errors
+- PASS: avg >= 4.0, no axis below 3.0, no critical anti-patterns (AP-1, AP-5, AP-6)
+- WARN: avg >= 3.0 but has warnings or non-critical anti-patterns
+- FAIL: avg < 3.0 or has critical structural errors or critical anti-patterns
 
 ## Detailed Results
 
@@ -107,31 +124,31 @@ Skills audited: {{count}}
 **Score**: {{avg}}/5.0
 
 **Structural Validation**: {{PASS/FAIL}}
-{{list of errors/warnings}}
+{{list of specific errors/warnings with line numbers}}
 
 **Anti-Patterns Detected**: {{count}}
-{{list with severity}}
+{{list with ID, severity, and cited evidence}}
 
 **Quality Scores**:
-| Axis | Score | Notes |
-|------|-------|-------|
-| Accuracy | {{score}} | {{notes}} |
-| Completeness | {{score}} | {{notes}} |
-| Structure | {{score}} | {{notes}} |
-| Trigger | {{score}} | {{notes}} |
-| Reusability | {{score}} | {{notes}} |
+| Axis | Score | Evidence |
+|------|-------|----------|
+| Accuracy | {{score}} | {{specific observation from skill text}} |
+| Completeness | {{score}} | {{specific observation}} |
+| Structure | {{score}} | {{specific observation}} |
+| Trigger | {{score}} | {{specific observation}} |
+| Reusability | {{score}} | {{specific observation}} |
 
 **Recommended Actions** (priority order):
-1. {{highest priority fix}}
+1. {{highest priority fix with specific instruction}}
 2. {{next fix}}
 3. {{next fix}}
 ```
 
 ### Phase 6: Improvement Suggestions
 For each WARN/FAIL skill, suggest:
-- Specific fixes for each detected issue
+- Specific fixes for each detected issue (with line numbers and replacement text)
 - Whether to use `/skill-create improve <path>` for automated improvement
-- Whether to decompose into a Suite if too complex
+- Whether to decompose into a Suite if too complex (AP-1 detected)
 
 ---
 

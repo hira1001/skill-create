@@ -12,6 +12,14 @@ description: |
 
 Generate new code that fits naturally into the existing codebase, following its conventions and architecture.
 
+## Critical Rules
+
+1. **Convention compliance**: Generated code MUST match the project's detected conventions (naming, imports, patterns). If context-output.json says `naming: "camelCase"`, every new identifier uses camelCase. No exceptions.
+2. **No placeholder code**: Never leave `TODO`, `FIXME`, `// implement later`, `pass`, `throw new Error("not implemented")`, or empty function bodies. Every function must have a complete implementation.
+3. **Wiring is mandatory**: New code that isn't reachable from an entry point is dead code. Always register routes, export symbols, update barrel files, and add configuration entries.
+4. **Read before create**: Before creating a new file, read at least one sibling file in the same directory to match structure, imports, and style exactly.
+5. **Types first**: Define interfaces/types before implementations. This prevents type errors during generation and makes the code self-documenting.
+
 ## Input
 
 ### Suite Mode
@@ -36,32 +44,55 @@ If no suite context, analyze the project directly. Ask user to describe the feat
 
 ## Process
 
-1. **Load context and plan**: Read the context JSON for conventions (naming, import style, patterns) and the arch plan for files to create/modify.
+### Step 1: Load context and plan
+Read the context JSON for conventions (naming, import style, patterns) and the arch plan for files to create/modify. Extract:
+- `conventions.naming` → apply to all new identifiers
+- `conventions.import_style` → apply to all new imports
+- `conventions.patterns` → follow detected patterns (repository, DI, etc.)
+- `framework` → use framework idioms (e.g., Express middleware pattern, React hooks)
 
-2. **Read existing code** (max 5 files): Before writing, read:
-   - Files listed in `files_to_modify`
-   - 1-2 adjacent files to understand patterns (e.g., a sibling route if adding a route)
-   - Type definitions and interfaces relevant to the feature
-   If conventions are still unclear after 5 files, use language-standard conventions and note the assumption.
+### Step 2: Read existing code (max 5 files)
+Before writing, read in this priority order:
+1. Files listed in `files_to_modify` from arch plan (must read all)
+2. One sibling file in the same directory as each new file (to copy structure)
+3. Type definitions and interfaces relevant to the feature
+4. Entry point file (to understand wiring pattern)
 
-3. **Design the implementation**: Following the arch plan's `approach_notes`:
-   - Define new interfaces/types first
-   - Stub out function signatures
-   - Then fill in implementations
+If conventions are still unclear after 5 files, use language-standard conventions and note the assumption in `change_summary`.
 
-4. **Write code**: Apply the project's detected conventions:
-   - Use the same naming convention (camelCase, snake_case, etc.)
-   - Match existing import style (relative vs. absolute)
-   - Follow detected patterns (repository pattern, DI, etc.)
-   - Match file structure and organization of sibling files
-   - See [code-gen-patterns.md](references/code-gen-patterns.md) for language-specific guidance
+### Step 3: Define types first
+Before writing any implementation:
+- Define new interfaces/types/structs for the feature
+- Ensure they align with existing type patterns in the project
+- Place them in the project's conventional location for types
 
-5. **Update wiring**: Ensure the new code is properly integrated:
-   - Register routes, handlers, or modules in the appropriate index/app files
-   - Export new symbols from barrel files (index.ts, etc.)
-   - Add configuration entries if required
+### Step 4: Implement with convention matching
+Apply the project's detected conventions strictly:
+- **Naming**: Match exactly (camelCase/snake_case/PascalCase as detected)
+- **Imports**: Match style (relative vs absolute, named vs default, alias patterns)
+- **File structure**: Match organization of sibling files (exports at top/bottom, function ordering)
+- **Error handling**: Match project's error handling pattern (exceptions, Result types, error codes)
+- **Logging**: Use the project's existing logger if one exists
+- See [code-gen-patterns.md](references/code-gen-patterns.md) for language-specific guidance
 
-6. **Write basic tests**: Create or update test files for new public APIs (unless user says skip).
+### Step 5: Wire into existing code
+Ensure the new code is properly integrated:
+- Register routes, handlers, or modules in the appropriate index/app files
+- Export new symbols from barrel files (index.ts, __init__.py, etc.)
+- Add configuration entries if required
+- Update dependency injection container if the project uses DI
+
+**Wiring verification checklist**:
+- [ ] Every new exported symbol is imported somewhere
+- [ ] Every new route/handler is registered in the router/app
+- [ ] Every new config key has a default value or is documented as required
+- [ ] Every new dependency is injected through the project's DI pattern (if applicable)
+
+### Step 6: Write basic tests
+Create or update test files for new public APIs (unless user says skip):
+- At least one happy-path test per new endpoint/function
+- At least one error-case test
+- Follow the project's test file naming and structure conventions
 
 ## Output Format
 
@@ -79,10 +110,10 @@ Write to `.agent/phase3/generate-output.json`:
     "src/app.ts"
   ],
   "change_summary": {
-    "src/routes/profile.ts": "New route handler for GET /users/:id/profile",
-    "src/services/profile.service.ts": "New service fetching user profile from DB",
-    "tests/routes/profile.test.ts": "Tests for 200 OK, 404 not found cases",
-    "src/app.ts": "Registered profile router"
+    "src/routes/profile.ts": "New route handler for GET /users/:id/profile with input validation",
+    "src/services/profile.service.ts": "New service fetching user profile from DB with error handling",
+    "tests/routes/profile.test.ts": "Tests for 200 OK, 404 not found, 400 invalid ID cases",
+    "src/app.ts": "Registered profile router at /users"
   },
   "run_command": "npm test -- tests/routes/profile.test.ts",
   "verification_hint": "GET /users/1/profile should return { id: 1, bio: '...' }"
@@ -92,12 +123,15 @@ Write to `.agent/phase3/generate-output.json`:
 Also display a summary to the user showing what was generated.
 
 ## Quality Criteria
-- [ ] Generated code matches project conventions (naming, imports, patterns)
-- [ ] New code is properly wired into existing entry points
-- [ ] At least one test written for each new public API
-- [ ] No placeholder TODOs left in generated code
+- [ ] Generated code matches project conventions exactly (naming, imports, patterns)
+- [ ] New code is reachable from entry points (wiring complete)
+- [ ] At least one test per new public API
+- [ ] No placeholder code: every function body is fully implemented
+- [ ] All files in `files_modified` were read before editing
+- [ ] Types/interfaces defined before implementations
 
 ## Error Handling
 - If arch plan is missing: run dev-agent-arch first, then proceed
 - If an existing file is too large to read fully: read the relevant section only (top 100 lines + function signatures)
-- If a convention cannot be detected: follow language-standard conventions and note the assumption
+- If a convention cannot be detected: follow language-standard conventions and note the assumption in `change_summary`
+- If the feature requires a dependency not in the project: note the required dependency in `verification_hint` and ask user to install it

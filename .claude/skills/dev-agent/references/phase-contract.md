@@ -66,11 +66,13 @@ Downstream skills must handle null gracefully (skip that check, default behavior
 | `root_cause_file` | string \| null | File containing root cause |
 | `root_cause_line` | number \| null | Line number |
 | `call_chain` | string[] | `["file.ts:N", ...]` |
-| `hypothesis_confidence` | "high" \| "medium" \| "low" | |
+| `evidence` | string[] | Specific observations citing file:line that support the diagnosis |
+| `hypothesis_confidence` | "high" \| "medium" \| "low" | See confidence calibration in dev-agent-diagnose |
 | `fix_approach` | string | Recommended fix strategy |
 | `files_to_fix` | string[] | Files that need changes |
 | `related_files` | string[] | Files related to the bug but not the root cause (e.g., callers, test files) |
 | `regression_risk` | "high" \| "medium" \| "low" | |
+| `additional_causes` | object[] | Secondary root causes (same schema, minus this field) |
 
 **Important**: dev-agent-arch in Flow B reads this file to produce an informed
 implementation plan. The plan then goes to dev-agent-fix.
@@ -159,7 +161,7 @@ The orchestrator reads the latest file for the retry decision.
 |-------|------|-------|
 | `verdict` | "PASS" \| "WARN" \| "FAIL" | Overall verdict |
 | `files_reviewed` | string[] | |
-| `findings` | `{severity, file, line?, dimension, issue, recommendation}[]` | |
+| `findings` | `{severity, file, line?, dimension, code?, issue, recommendation}[]` | `code` field quotes the problematic snippet |
 | `summary` | string | Human-readable summary |
 
 ### Test Output

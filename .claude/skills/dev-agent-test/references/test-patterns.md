@@ -1,5 +1,36 @@
 # Test Patterns by Framework
 
+## Vitest (TypeScript/JavaScript — modern)
+
+### Structure
+```typescript
+import { describe, it, expect, vi } from 'vitest';
+import { createUser } from '../src/users';
+
+describe('createUser', () => {
+  it('creates a user with valid input', async () => {
+    const user = await createUser({ name: 'Alice', email: 'alice@example.com' });
+    expect(user.id).toBeDefined();
+    expect(user.name).toBe('Alice');
+  });
+
+  it('throws on missing email', async () => {
+    await expect(createUser({ name: 'Alice', email: '' }))
+      .rejects.toThrow('Email is required');
+  });
+});
+```
+
+### Mocking
+```typescript
+import { vi } from 'vitest';
+vi.mock('../src/db', () => ({
+  query: vi.fn().mockResolvedValue([{ id: 1, name: 'Alice' }])
+}));
+```
+
+---
+
 ## Jest (TypeScript/JavaScript)
 
 ### Structure
@@ -95,6 +126,38 @@ mod tests {
     fn returns_error_on_missing_email() {
         let result = create_user("Alice", "");
         assert!(result.is_err());
+    }
+}
+```
+
+---
+
+## JUnit 5 (Java/Kotlin)
+
+```java
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.DisplayName;
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+class UserServiceTest {
+    private final UserRepository repo = mock(UserRepository.class);
+    private final UserService svc = new UserService(repo);
+
+    @Test
+    @DisplayName("returns user when found")
+    void returnsUserWhenFound() {
+        when(repo.findById(1L)).thenReturn(Optional.of(new User(1L, "Alice")));
+        var user = svc.findById(1L);
+        assertThat(user).isPresent();
+        assertThat(user.get().getName()).isEqualTo("Alice");
+    }
+
+    @Test
+    @DisplayName("returns empty when user not found")
+    void returnsEmptyWhenNotFound() {
+        when(repo.findById(99L)).thenReturn(Optional.empty());
+        assertThat(svc.findById(99L)).isEmpty();
     }
 }
 ```

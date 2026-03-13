@@ -13,6 +13,14 @@ description: |
 Create, improve, and compose Claude Code skills with autonomous iterative quality improvement.
 Uses MCP server (`skill-creator-server`) for deterministic operations and subagents for reasoning.
 
+## Critical Rules
+
+1. **One job per skill**: A skill does exactly one thing. If the description needs "and" to explain it, split into a suite.
+2. **No vague instructions**: Every instruction in a generated skill must be concrete and executable. Ban phrases: "handle appropriately", "make it good", "ensure quality", "process as needed". Replace with specific actions.
+3. **Progressive Disclosure**: SKILL.md body stays under 300 lines. Detailed specs, examples, and schemas go in references/. Complex reasoning goes in agents/.
+4. **Test before ship**: No skill is installed without passing the improvement loop. Skip only if user explicitly says "skip tests".
+5. **Trigger precision**: The description must include exact "Use when:" phrases AND "Do NOT use when:" disambiguation. Generic descriptions cause false triggers.
+
 ## Mode Selection
 
 Analyze the user's input and select the appropriate mode:
@@ -44,17 +52,17 @@ If the user just types `/skill-create` with no arguments, ask:
 ### Steps
 1. **Extract** from the input document:
    - Purpose (1 sentence: what does this skill achieve?)
-   - Trigger conditions (when should it activate?)
-   - Steps (sequential procedure)
-   - Constraints and quality criteria
-   - Input/output types
+   - Trigger conditions (when should it activate? when should it NOT?)
+   - Steps (sequential procedure with numbered, imperative instructions)
+   - Constraints and quality criteria (measurable, not subjective)
+   - Input/output types with concrete examples
 
 2. **Size check**: If the procedure needs >500 lines of instructions:
-   - Suggest Mode E (Suite Design) to split into multiple skills
+   - Switch to Mode E (Suite Design) to split into multiple skills
    - Ask user to confirm
 
 3. **Generate draft** using template from `references/templates/single-skill.md`:
-   - Write SKILL.md with frontmatter (name, description with trigger phrases)
+   - Write SKILL.md with frontmatter (name, description with "Use when:" AND "Do NOT use when:")
    - Write references/ files for detailed specs, examples, schemas
    - Validate with MCP: `validate_skill(skill_path)`
 
@@ -71,9 +79,9 @@ If the user just types `/skill-create` with no arguments, ask:
 1. **Analyze** the artifact:
    - Structure patterns (sections, hierarchy, ordering)
    - Style patterns (tone, formatting, naming conventions)
-   - Quality characteristics (what makes this "good"?)
+   - Quality characteristics (what makes this "good"? — identify specific, measurable attributes)
    - Variable vs fixed parts (what changes between instances?)
-   - Implicit rules (unstated conventions)
+   - Implicit rules (unstated conventions the artifact follows)
 
 2. **Reverse-engineer** the process:
    - What steps would produce this artifact?
@@ -81,11 +89,10 @@ If the user just types `/skill-create` with no arguments, ask:
    - What inputs are needed?
 
 3. **Generate draft**:
-   - SKILL.md: Generation instructions with quality criteria
-   - references/: Artifact structure template + example
+   - SKILL.md: Generation instructions with measurable quality criteria
+   - references/: Artifact structure template + annotated example
 
-4. **Reproduction test**: Use a subagent to run the skill, compare output with original artifact
-   → Feed differences into the improvement loop
+4. **Reproduction test**: Use a subagent to run the skill on a new input, compare output structure with original artifact. Feed structural differences into the improvement loop.
 
 5. **Run autonomous improvement loop**
 
@@ -107,10 +114,10 @@ If the user just types `/skill-create` with no arguments, ask:
 ### Steps
 1. **Record/analyze** the workflow
 2. **Extract patterns**:
-   - Repeated operations
-   - Decision branches (if-then)
-   - Variable parts (parameterize these)
-   - Error handling patterns
+   - Repeated operations → parameterize these
+   - Decision branches (if-then) → document as conditional steps
+   - Variable parts → make these skill inputs
+   - Error handling patterns → include in skill error handling section
 3. **Filter**: Remove trial-and-error, keep only the final working path
 4. **Generate draft** → **Run improvement loop**
 
@@ -126,15 +133,18 @@ If the user just types `/skill-create` with no arguments, ask:
 
 2. **Validate structure**: MCP `validate_skill(skill_path)`
 
-3. **Evaluate quality**: Read `references/quality-rubric.md` and score the skill:
+3. **Evaluate quality**: Score the skill against `references/quality-rubric.md`:
    - Accuracy, Completeness, Structure Quality, Trigger Precision, Reusability
+   - For each axis, cite specific evidence from the skill (not just a number)
 
 4. **Diagnose issues** against `references/anti-patterns.md`:
-   - Kitchen Sink? Vague Description? Inline Everything? Missing Tests?
+   - Check each of the 12 anti-patterns (AP-1 through AP-12)
+   - For each detected anti-pattern, note the specific location and text
 
-5. **Generate improvement plan**: Focus on weakest axis first, max 5 changes
+5. **Generate improvement plan**: Focus on weakest axis first, max 5 changes per iteration
+   - Each change must be specific: "Replace lines 42-45 with X" not "improve the instructions"
 
-6. **Apply improvements** → **Run improvement loop** to verify
+6. **Apply improvements** → **Run improvement loop** to verify quality increased
 
 ---
 
@@ -146,9 +156,9 @@ If the user just types `/skill-create` with no arguments, ask:
 ### Steps
 1. **Decompose goal**: Launch `skill-decomposer` agent
    - Map all required capabilities
-   - Group into skills (each <500 lines, 1 responsibility)
+   - Group into skills (each <300 lines body, 1 responsibility)
    - Design dependency graph (sequential/parallel/merge)
-   - Define data contracts between skills
+   - Define data contracts between skills (JSON schemas with required fields)
 
 2. **Review decomposition** with user:
    - Show skill list, dependency graph, data flow
@@ -181,10 +191,10 @@ Applied after every mode's draft generation. This is the core differentiator.
 
 ### Phase 1: Generate Test Cases
 - Design 5 should_trigger + 5 should_not_trigger test prompts
-- For each should_trigger case: define expected behavior and evaluation criteria
-- For code-generation skills: include execution test cases
+- For each should_trigger case: define expected behavior and specific evaluation criteria
+- For code-generation skills: include execution test cases with expected output
 - Save via MCP: `generate_eval_set(skill_path, 10)`
-- **Fill in the [TODO] placeholders** in the generated template with actual test content
+- Fill in ALL placeholders in the generated template with actual test content — no [TODO] markers left
 
 ### Phase 2: Execute Tests
 - MCP: `run_eval(skill_path, eval_set_path, parallel=3)`
@@ -194,22 +204,24 @@ Applied after every mode's draft generation. This is the core differentiator.
 ### Phase 3: Grade Outputs
 - Launch `skill-grader` agent for each test result (parallel via Agent Teams)
 - Grader scores 5 axes using `references/quality-rubric.md`
+- Each score must include specific evidence justifying the rating
 - Collect all grading results
 
 ### Phase 4: Analyze & Improve
 - Launch `skill-analyzer` agent with all grading results
 - Analyzer identifies patterns across failures
 - Generates prioritized improvements (max 5 per iteration)
+- Each improvement must be a concrete edit, not a general suggestion
 - Apply improvements to SKILL.md and references/
 
 ### Phase 5: Convergence Check
 - MCP: `update_loop_state(skill_path, scores)`
 - Continue if:
   - Average score < 4.0 OR min axis < 3.0
-  - AND improvement detected in last iteration
+  - AND improvement detected in last iteration (at least one axis score increased)
   - AND iteration count < 5
 - Stop if:
-  - Quality threshold met (avg ≥ 4.0, min ≥ 3.0) → **Success**
+  - Quality threshold met (avg >= 4.0, min >= 3.0) → **Success**
   - No improvement for 2 consecutive iterations → **Converged**
   - Max 5 iterations reached → **Timeout**
 
@@ -218,7 +230,7 @@ If the loop stops but quality is below threshold:
 1. First: Try decomposition via `skill-decomposer` (split the skill)
 2. If decomposition also fails: Escalate to user with specific issues:
    "The following quality issues could not be resolved automatically:
-   - [issue list with scores]
+   - [issue list with current scores and what was tried]
    Please adjust the requirements or provide more detailed instructions."
 
 ### On Success
@@ -231,7 +243,7 @@ If the loop stops but quality is below threshold:
 ## Quality Reference (Quick)
 
 See `references/quality-rubric.md` for full rubric. Quick thresholds:
-- **Pass**: avg ≥ 4.0 across 5 axes, no axis below 3.0
+- **Pass**: avg >= 4.0 across 5 axes, no axis below 3.0
 - **5 axes**: Accuracy, Completeness, Structure, Trigger Precision, Reusability
 
 See `references/anti-patterns.md` for common mistakes to avoid.

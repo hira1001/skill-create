@@ -121,3 +121,86 @@ pub async fn get_user(
     Ok(Json(user))
 }
 ```
+
+---
+
+## Java / Kotlin (Spring Boot)
+
+### Naming
+- Variables and methods: camelCase
+- Classes and interfaces: PascalCase
+- Constants: UPPER_SNAKE_CASE
+- Packages: all lowercase, dot-separated
+- Files: PascalCase.java / PascalCase.kt (match class name)
+
+### Common Patterns
+```java
+// Spring REST Controller
+@RestController
+@RequestMapping("/users")
+public class UserController {
+    private final UserService userService;
+
+    public UserController(UserService userService) {
+        this.userService = userService;
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<User> getUser(@PathVariable Long id) {
+        return userService.findById(id)
+            .map(ResponseEntity::ok)
+            .orElse(ResponseEntity.notFound().build());
+    }
+}
+
+// Service
+@Service
+public class UserService {
+    private final UserRepository userRepository;
+
+    public UserService(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
+
+    public Optional<User> findById(Long id) {
+        return userRepository.findById(id);
+    }
+}
+```
+
+```kotlin
+// Kotlin equivalent
+@RestController
+@RequestMapping("/users")
+class UserController(private val userService: UserService) {
+    @GetMapping("/{id}")
+    fun getUser(@PathVariable id: Long): ResponseEntity<User> =
+        userService.findById(id)?.let { ResponseEntity.ok(it) }
+            ?: ResponseEntity.notFound().build()
+}
+```
+
+---
+
+## Ruby (Rails)
+
+### Naming
+- Variables and methods: snake_case
+- Classes and modules: PascalCase
+- Constants: UPPER_SNAKE_CASE
+- Files: snake_case.rb
+
+### Common Patterns
+```ruby
+# Controller
+class UsersController < ApplicationController
+  def show
+    user = User.find_by(id: params[:id])
+    if user
+      render json: user
+    else
+      render json: { error: "Not found" }, status: :not_found
+    end
+  end
+end
+```
