@@ -76,3 +76,28 @@ Check for config files in project root:
 - `.flake8` → Flake8
 - `clippy.toml` → Clippy
 - `.golangci.yml` → golangci-lint
+
+## Monorepo Detection
+
+| Signal | Monorepo Type |
+|--------|--------------|
+| `workspaces` field in package.json | npm/yarn/pnpm workspaces |
+| `pnpm-workspace.yaml` in root | pnpm workspace |
+| `lerna.json` in root | Lerna |
+| `nx.json` in root | Nx |
+| `turbo.json` in root | Turborepo |
+| Multiple `go.mod` files in subdirectories | Go multi-module |
+| `Cargo.toml` with `[workspace]` section | Rust workspace |
+
+When a monorepo is detected:
+- Set `project_root` to the workspace root.
+- Add a `monorepo` field to context-output.json:
+  ```json
+  "monorepo": {
+    "type": "npm-workspaces",
+    "packages": ["packages/core", "packages/api", "apps/web"],
+    "active_package": "packages/api"
+  }
+  ```
+- Determine `active_package` by finding which package contains the files the user is asking about.
+- Downstream skills should scope their operations to `active_package` unless the user specifies otherwise.

@@ -65,3 +65,25 @@
 - [ ] At least one error/edge case tested per function
 - [ ] Tests are isolated (no shared mutable state)
 - [ ] Tests are deterministic (no random values, no time dependencies without mocking)
+
+---
+
+## API Compatibility Checklist
+
+- [ ] Public function signatures unchanged (or marked as breaking change)
+- [ ] Return types unchanged for existing functions
+- [ ] Required parameters not added to existing public functions (use optional params or overloads)
+- [ ] Exported symbols not removed or renamed without deprecation
+- [ ] REST API endpoints maintain backward compatibility (no removed fields in responses)
+- [ ] Error codes/messages not changed in ways that break client error handling
+
+---
+
+## Dependency Safety Checklist
+
+- [ ] No new dependencies with known vulnerabilities
+- [ ] New dependencies are well-maintained (check: last commit < 6 months, > 100 stars or equivalent)
+- [ ] No unnecessary new dependencies (stdlib or existing dep can do the same thing)
+- [ ] Dependency version ranges are appropriately pinned (not overly broad)
+- [ ] No circular dependency introduced between internal modules
+- [ ] License of new dependencies compatible with project license

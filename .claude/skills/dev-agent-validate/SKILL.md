@@ -44,10 +44,11 @@ If no suite context, detect the project tooling directly and validate the entire
 
 ## Output Format
 
-Write to `.agent/phase4/validate-output.json` (phase number matches the flow):
+Write to `.agent/phase4/validate-output-{N}.json` where N is the attempt number (1 for first run, 2 for retry):
 
 ```json
 {
+  "attempt": 1,
   "checks": [
     {"check": "compile", "passed": true, "output": ""},
     {"check": "lint", "passed": false, "output": "src/auth.ts:42 - no-unused-vars"},

@@ -21,6 +21,13 @@ If invoked directly, display the analysis to the user and optionally write to `.
 
 ## Process
 
+### Cache Check
+Before running detection, check if `.agent/phase1/context-output.json` already exists:
+1. Read the existing file.
+2. If `project_root` matches the current working directory AND the file was written within the last 30 minutes (check file modification time): reuse it and skip detection.
+3. If the user explicitly says "re-analyze" or "refresh context": ignore cache and re-run.
+4. Otherwise, proceed with fresh detection.
+
 1. **Detect project root**: Find the nearest directory containing a package.json, Cargo.toml, go.mod, pyproject.toml, pom.xml, or .git directory.
 
 2. **Identify language and framework**: Read the primary config file to determine:
@@ -44,7 +51,10 @@ If invoked directly, display the analysis to the user and optionally write to `.
    - Whether there are uncommitted changes
    - Recent commit count
 
-6. **Detect conventions** by sampling 3-5 source files:
+6. **Detect conventions** by sampling **8-12 source files** across different directories:
+   - Sample at least 2 files from each key directory (src, tests, etc.)
+   - Include files of varying sizes (not just the smallest)
+   - If the project has multiple sub-packages/modules, sample from at least 3 different ones
    - Naming convention (camelCase, snake_case, PascalCase)
    - Import style (relative, absolute, aliases)
    - Notable patterns (dependency injection, repository pattern, etc.)
@@ -77,7 +87,8 @@ Write to `.agent/phase1/context-output.json`:
     "branch": "main",
     "has_uncommitted": false
   },
-  "source_file_count": 42
+  "source_file_count": 42,
+  "monorepo": null
 }
 ```
 

@@ -20,6 +20,7 @@
     review-output.json            ← dev-agent-review
     test-output.json              ← dev-agent-test (optional)
     docs-output.json              ← dev-agent-docs (optional)
+  rollback-ref.txt                ← orchestrator (pre-Phase 3 safety point)
   summary.json                    ← dev-agent orchestrator
 ```
 
@@ -45,6 +46,7 @@
 | `conventions` | object | `{naming, import_style, patterns[]}` |
 | `git_status` | object \| null | `{branch, has_uncommitted}` |
 | `source_file_count` | number | Total source files |
+| `monorepo` | object \| null | `{type, packages[], active_package}` if monorepo detected |
 
 **Null handling**: If a field cannot be detected, set it to `null`.
 Downstream skills must handle null gracefully (skip that check, default behavior, or ask user).
@@ -67,6 +69,7 @@ Downstream skills must handle null gracefully (skip that check, default behavior
 | `hypothesis_confidence` | "high" \| "medium" \| "low" | |
 | `fix_approach` | string | Recommended fix strategy |
 | `files_to_fix` | string[] | Files that need changes |
+| `related_files` | string[] | Files related to the bug but not the root cause (e.g., callers, test files) |
 | `regression_risk` | "high" \| "medium" \| "low" | |
 
 **Important**: dev-agent-arch in Flow B reads this file to produce an informed
@@ -201,6 +204,7 @@ The orchestrator reads the latest file for the retry decision.
     "test_passed": null,
     "docs_updated": null
   },
+  "review_retried": false,
   "overall_passed": true
 }
 ```
@@ -219,8 +223,26 @@ The orchestrator reads the latest file for the retry decision.
 | `phase1/context-output.json` | Run dev-agent-context (max 1 auto-retry) |
 | `phase2/arch-output.json` | Run dev-agent-arch (max 1 auto-retry) |
 | `phase2/diagnose-output.json` | Run dev-agent-diagnose (max 1 auto-retry) |
-| `phase3/*-output.json` | Report error — cannot auto-recover Phase 3 |
+| `phase3/*-output.json` | Cannot auto-recover. Report: "Phase 3 output missing. This means the code change skill (fix/generate/refactor) did not complete. Please (1) check for partially written files and undo them, (2) re-run the full flow, or (3) re-run from Phase 3 using: resume from phase 3." |
 | `phase4/validate-output-1.json` | Report error and skip to Phase 5 with warning |
 
 Auto-recovery is capped at **1 attempt per phase**. If the recovery run fails,
 report the error and stop. Do not recurse.
+
+---
+
+## Output Validation Rules
+
+Each phase output JSON must satisfy these rules before being consumed by the next phase:
+
+| Phase Output | Required Fields | Type Checks |
+|-------------|----------------|-------------|
+| context-output.json | `project_root`, `language` | `project_root` is non-empty string, `language` is non-empty string |
+| diagnose-output.json | `root_cause`, `fix_approach`, `files_to_fix` | `files_to_fix` is non-empty array |
+| arch-output.json | `mode`, `goal` (plan) or `mode`, `layers` (analyze) | `mode` is "plan" or "analyze" |
+| *-output.json (Phase 3) | `files_modified`, `files_created` | Both are arrays |
+| validate-output-{N}.json | `all_passed`, `checks` | `all_passed` is boolean, `checks` is non-empty array |
+| review-output.json | `verdict`, `findings` | `verdict` is one of "PASS", "WARN", "FAIL" |
+
+If a consumed JSON is missing a required field, the consuming skill should report the error
+and trigger the auto-recovery mechanism (re-run the producing skill once).

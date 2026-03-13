@@ -8,8 +8,10 @@ Language-specific commands for compile, lint, and test checks.
 |-------|---------|-------|
 | Compile | `npx tsc --noEmit` | For TS projects |
 | Lint | `npx eslint <files>` | Or `npx eslint .` for all |
+| Lint fix | `npx eslint --fix <files>` | Auto-fix — modifies files |
 | Test | `npm test` or `npx jest <files>` | Use `-- --passWithNoTests` if needed |
 | Format check | `npx prettier --check <files>` | Non-destructive check |
+| Format fix | `npx prettier --write <files>` | Auto-fix — modifies files |
 
 **Package manager detection**: Use `npm` if `package-lock.json`, `yarn` if `yarn.lock`, `pnpm` if `pnpm-lock.yaml`.
 
@@ -19,8 +21,10 @@ Language-specific commands for compile, lint, and test checks.
 |-------|---------|-------|
 | Type check | `mypy <files>` or `pyright <files>` | If configured |
 | Lint | `ruff check <files>` or `flake8 <files>` | Ruff preferred |
+| Lint fix | `ruff check --fix <files>` | Auto-fix — modifies files |
 | Test | `pytest <files>` or `python -m pytest` | |
 | Format check | `ruff format --check <files>` or `black --check <files>` | Non-destructive |
+| Format fix | `ruff format <files>` or `black <files>` | Auto-fix — modifies files |
 
 ## Rust
 
@@ -28,8 +32,10 @@ Language-specific commands for compile, lint, and test checks.
 |-------|---------|-------|
 | Compile | `cargo check` | Fast compile check |
 | Lint | `cargo clippy` | |
+| Lint fix | `cargo clippy --fix --allow-dirty` | Auto-fix — modifies files |
 | Test | `cargo test` | |
 | Format check | `cargo fmt -- --check` | |
+| Format fix | `cargo fmt` | Auto-fix — modifies files |
 
 ## Go
 
@@ -39,6 +45,7 @@ Language-specific commands for compile, lint, and test checks.
 | Lint | `golangci-lint run` | If installed |
 | Test | `go test ./...` | |
 | Format check | `gofmt -l .` | Lists unformatted files |
+| Format fix | `gofmt -w .` | Auto-fix — modifies files |
 
 ## Java (Maven)
 
@@ -64,3 +71,12 @@ When `files_modified` is available:
 
 When `files_modified` is not available:
 - Run all checks on the full project
+
+## Auto-Fix Policy
+
+When `dev-agent-validate` finds lint or format failures:
+1. If the fix is a safe auto-fix (formatting, import sorting, unused import removal): run the auto-fix command automatically.
+2. After auto-fix, re-run the check to confirm it passes.
+3. Add auto-fixed files to `files_modified` in the validate output.
+4. If auto-fix changes semantic code (not just formatting): do NOT auto-fix. Instead, add to `remediation_hints`.
+5. Never auto-fix compile errors or test failures.
