@@ -12,14 +12,13 @@ description: |
 # Skill Quality Auditor
 
 Audit one or all Claude Code skills for quality, structure, and best practices compliance.
-Uses MCP server (`skill-creator-server`) for structural validation and subagents for deep analysis.
 
 ## Critical Rules
 
 1. **Evidence-based scoring**: Every score must cite specific text from the skill. "Accuracy: 3/5" alone is invalid. "Accuracy: 3/5 — instructions say 'handle appropriately' on line 42 without defining what 'appropriate' means" is valid.
 2. **Consistent criteria**: Apply the same rubric to every skill. Do not adjust expectations based on skill complexity.
 3. **Actionable output**: Every finding must include a specific fix suggestion. "Needs improvement" is not actionable. "Replace 'handle errors' on line 15 with 'if error is network timeout, retry once; if auth error, report to user'" is.
-4. **No false confidence**: If the MCP server is unavailable, run manual validation. Note in the report that MCP validation was skipped.
+4. **No false confidence**: If a file cannot be read or found, note the gap explicitly in the report rather than skipping it silently.
 
 ## Input Detection
 
@@ -39,8 +38,6 @@ Uses MCP server (`skill-creator-server`) for structural validation and subagents
 - Report: "Found N skills to audit"
 
 ### Phase 2: Structural Validation (per skill)
-Use MCP: `validate_skill(skill_path)` for each skill. If MCP unavailable, check manually.
-
 Check:
 - [ ] SKILL.md exists with valid YAML frontmatter
 - [ ] `name` is kebab-case, no reserved words
@@ -66,7 +63,7 @@ Check against anti-patterns (from skill-create's `references/anti-patterns.md`):
 | AP-9 | No Error Path | No error handling instructions |
 | AP-10 | Stale References | references/ files contradict SKILL.md content |
 | AP-11 | Over-Engineered | >5 reference files for a single (non-suite) skill |
-| AP-12 | Missing Tests | No eval set in .agent/evals/ |
+| AP-12 | Missing Disambiguation | No "Do NOT use when:" clause to redirect to sibling skills |
 
 For each detected anti-pattern, cite the specific line(s) and text that triggered detection.
 

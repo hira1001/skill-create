@@ -36,15 +36,15 @@ Is the skill properly structured per conventions?
 | 5 | Exemplary structure; perfect layering; clean separation |
 
 ## Axis 4: Trigger Precision (トリガー精度)
-Does the skill activate when it should and stay silent when it shouldn't?
+Is the description precise enough to activate exactly when intended?
 
 | Score | Criteria |
 |-------|----------|
-| 1 | Never triggers or always triggers inappropriately |
-| 2 | Triggers <30% of the time when it should |
-| 3 | Triggers 50-70% correctly; some false positives/negatives |
-| 4 | Triggers 80-90% correctly; rare false triggers |
-| 5 | 95%+ trigger precision; excellent description quality |
+| 1 | No trigger info; description is a generic summary with no "Use when:" |
+| 2 | Has trigger phrases but no "Do NOT use when:"; will false-trigger on adjacent topics |
+| 3 | Has both clauses but phrases are generic; overlaps with similar skills |
+| 4 | Clear trigger phrases in multiple languages; "Do NOT use when:" names specific alternatives |
+| 5 | Specific multilingual phrases; "Do NOT use when:" redirects explicitly; no ambiguous overlap with sibling skills |
 
 ## Axis 5: Reusability (再利用性)
 Does the skill produce consistent quality across different inputs?
@@ -63,13 +63,12 @@ Does the skill produce consistent quality across different inputs?
 - Individual test case: average score ≥ 3.0
 - Overall skill: all-axis average ≥ 4.0 AND minimum axis ≥ 3.0
 
-### Grading Process
-1. Read the eval case prompt and expected behavior
-2. Read the actual output from the executor
-3. Score each axis with evidence
-4. Calculate average
-5. Determine pass/fail
-6. Suggest specific improvements for low-scoring axes
+### Scoring Process
+1. Read all skill files: SKILL.md, references/, agents/
+2. Score each axis with evidence cited from the skill text
+3. Calculate average
+4. Determine pass/fail
+5. Suggest specific improvements for low-scoring axes
 
 ### Evidence Requirements
 For each score, provide:

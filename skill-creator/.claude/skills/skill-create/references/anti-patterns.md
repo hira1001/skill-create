@@ -57,7 +57,7 @@ Common mistakes when creating skills. Check your skill against this list.
 **Symptom**: 10+ reference files for a skill that does one thing.
 **Fix**: Start simple. Add structure only when needed.
 
-## AP-12: Missing Test Coverage
-**Problem**: Skill is never tested against realistic prompts.
-**Symptom**: Works for the author's exact phrasing, fails for variations.
-**Fix**: Create diverse eval set. Test with different phrasings and edge cases.
+## AP-12: Missing Disambiguation Boundary
+**Problem**: When multiple skills handle related topics, none specify where one skill ends and another begins.
+**Symptom**: Ambiguous user prompts trigger the wrong skill; "check my skill" routes to create-improve instead of skill-audit.
+**Fix**: Add "Do NOT use when:" with explicit redirect ("use skill-X instead"). Every skill in a suite must know its siblings.
