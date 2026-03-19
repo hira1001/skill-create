@@ -48,22 +48,13 @@ Check:
 - [ ] No orphaned files (files in references/ or agents/ not referenced by SKILL.md)
 
 ### Phase 3: Anti-Pattern Detection (per skill)
-Check against anti-patterns (from skill-create's `references/anti-patterns.md`):
 
-| ID | Anti-Pattern | Detection Rule |
-|----|-------------|---------------|
-| AP-1 | Kitchen Sink | Body >300 lines AND description lists 3+ unrelated capabilities |
-| AP-2 | Vague Description | Description lacks "Use when:" or has no trigger phrases |
-| AP-3 | Keyword Triggering | Description relies on single generic keywords without context |
-| AP-4 | Inline Everything | Body >400 lines AND no references/ directory |
-| AP-5 | Ambiguous Instructions | Contains: "make it good", "handle appropriately", "ensure quality", "process as needed" |
-| AP-6 | No Quality Criteria | No explicit success criteria, output format, or quality checklist |
-| AP-7 | Context Assumption | References specific files/tools without checking they exist |
-| AP-8 | Output Format Drift | No output format specification (for skills that produce structured output) |
-| AP-9 | No Error Path | No error handling instructions |
-| AP-10 | Stale References | references/ files contradict SKILL.md content |
-| AP-11 | Over-Engineered | >5 reference files for a single (non-suite) skill |
-| AP-12 | Missing Disambiguation | No "Do NOT use when:" clause to redirect to sibling skills |
+Load detection rules from (in order of preference):
+1. `references/anti-patterns-detection.md` in this skill (canonical source)
+2. skill-create's `references/anti-patterns.md` (if available at `~/.claude/skills/skill-create/references/anti-patterns.md` or `.claude/skills/skill-create/references/anti-patterns.md`)
+3. If neither is found, proceed with structural validation only and note the gap
+
+See `references/anti-patterns-detection.md` for the full AP table, severity classification, and detection notes.
 
 For each detected anti-pattern, cite the specific line(s) and text that triggered detection.
 
