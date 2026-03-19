@@ -119,7 +119,7 @@ If `/skill-create` with no arguments, ask:
 
 3. **Generate orchestrator** using `references/templates/suite-orchestrator.md`
 
-4. **Generate member skills in parallel**: one agent per skill, each runs Mode A
+4. **Generate member skills in parallel**: one agent per skill, each runs Mode A using `references/templates/suite-member.md`
 
 5. **Integration check**: verify data passed between skills matches their contracts
 
