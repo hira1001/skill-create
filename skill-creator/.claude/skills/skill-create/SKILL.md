@@ -6,7 +6,8 @@ description: |
   "skill suite", "スキル分解", "この作業をスキル化", "convert workflow to skill",
   "make a development agent", "スキルを作って", "create a new skill from",
   "build a skill that", "improve this skill", "optimize skill".
-  Do NOT use when: user wants to audit/review existing skills (use skill-audit).
+  Do NOT use when: user wants to audit, review, or check the quality of existing skills
+  (use skill-audit); "check my skill" with audit/quality-review intent should go to skill-audit.
 ---
 
 # Skill Creator
@@ -57,7 +58,7 @@ If `/skill-create` with no arguments, ask:
 
 4. **Self-Critique Pass** (see below)
 
-5. **Install**: `cp -r <skill_dir> ~/.claude/skills/<name>/`
+5. **Install**: `mkdir -p ~/.claude/skills/<name>/ && cp -r <skill_dir>/. ~/.claude/skills/<name>/`
 
 ---
 
@@ -86,9 +87,22 @@ If `/skill-create` with no arguments, ask:
 **Input**: Video, screenshots, or live session
 **Output**: Skill capturing the observed workflow
 
-1. **Record/analyze** the workflow
-2. **Extract**: repeated operations → parameterize; decision branches → conditional steps; filter out trial-and-error
-3. **Draft** → **Self-Critique Pass** → **Install**
+1. **Capture** the workflow:
+   - Video: note timestamps for each distinct action; ignore failed attempts and backtracking
+   - Screenshots: number them sequentially; describe what changed between each pair
+   - Live session: transcript is already available
+
+2. **Extract structure**:
+   - Repeated operations → parameterize with `{{variable}}` placeholders
+   - Decision branches → `if <condition>: do X; else: do Y` conditional steps
+   - Filter out trial-and-error; keep only the successful pattern
+   - Identify inputs (what triggers the workflow) and outputs (what it produces)
+
+3. **Identify gaps**: List steps that were implied but not shown; confirm with user if needed
+
+4. **Draft** using `references/templates/single-skill.md`
+
+5. **Self-Critique Pass** → **Install**
 
 ---
 
@@ -125,7 +139,7 @@ If `/skill-create` with no arguments, ask:
 
 6. **Docs**: Launch `skill-doc-generator` agent
 
-7. **Install**: `cp -r` each skill to `~/.claude/skills/`
+7. **Install**: `mkdir -p ~/.claude/skills/<name>/` for each skill, then `cp -r <skill_dir>/. ~/.claude/skills/<name>/`
 
 ---
 
@@ -168,7 +182,7 @@ Do NOT apply more than 5 changes — over-correction degrades quality.
 ### On Completion
 
 1. Launch `skill-doc-generator` to create README.md
-2. Install: `cp -r <skill_dir> ~/.claude/skills/<name>/`
+2. Install: `mkdir -p ~/.claude/skills/<name>/ && cp -r <skill_dir>/. ~/.claude/skills/<name>/`
 3. Report: "Installed: `~/.claude/skills/{{name}}/` — trigger with `/{{name}}` or '{{top trigger phrase}}'"
 
 ---
@@ -180,5 +194,4 @@ See `references/quality-rubric.md` for full 5-axis rubric.
 **5 axes**: Accuracy, Completeness, Structure Quality, Trigger Precision, Reusability
 
 See `references/anti-patterns.md` for AP-1..AP-12.
-See `references/best-practices.md` for positive patterns to follow.
-See `references/skill-structure.md` for structural requirements.
+See `references/skill-guidelines.md` for best practices and structural requirements.

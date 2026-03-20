@@ -6,7 +6,8 @@ description: |
   "スキルの品質チェック", "review my skills", "skill health check",
   "audit all skills", "全スキルを監査", "スキル品質レポート".
   Validates structure, evaluates quality, detects anti-patterns, and generates an audit report.
-  Do NOT use when: user wants to create or improve a skill (use skill-create instead).
+  Do NOT use when: user wants to create a new skill, improve an existing skill, or fix skill
+  instructions (use skill-create or `/skill-create improve <path>` instead).
 ---
 
 # Skill Quality Auditor
@@ -59,7 +60,11 @@ See `references/anti-patterns-detection.md` for the full AP table, severity clas
 For each detected anti-pattern, cite the specific line(s) and text that triggered detection.
 
 ### Phase 4: Quality Scoring (per skill)
-Launch `skill-audit-scorer` agent to evaluate 5 axes:
+Launch `skill-audit-scorer` agent to evaluate 5 axes.
+
+If the scorer agent returns malformed JSON or no output: manually evaluate each axis
+using the 1-5 definitions below, cite specific text from the skill as evidence,
+then apply PASS/WARN/FAIL thresholds.
 
 1. **Accuracy potential** (1-5): How likely is this skill to produce correct output?
    - 5: Every instruction is unambiguous with concrete examples
@@ -150,6 +155,17 @@ If the user says "quick audit" or "簡易監査":
 ## Continuous Audit
 
 If the user says "set up continuous audit" or "継続監査":
-- Generate a shell script that runs `validate_skill` on all skills
+- Generate the following shell script (audit-hook.sh):
+
+  ```bash
+  #!/bin/bash
+  SKILLS_DIR="${CLAUDE_SKILLS_DIR:-$HOME/.claude/skills}"
+  for skill_dir in "$SKILLS_DIR"/*/; do
+    [ -f "$skill_dir/SKILL.md" ] || continue
+    echo "=== Auditing: $(basename "$skill_dir") ==="
+    claude -p "audit skill $skill_dir"
+  done
+  ```
+
 - Can be added as a git pre-commit hook or scheduled task
 - Output: audit-hook.sh script
